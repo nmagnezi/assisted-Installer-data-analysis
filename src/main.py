@@ -1,15 +1,15 @@
 import logging
 import sys
 
-from src.common import arg_parser
-from src.common import helpers
-
+from src.client import client
+from src.common import helpers, arg_parser
 
 LOG = logging.getLogger(__name__)
 
 
 def main(args):
-    pass
+    helpers.configure_logger(args.debug)
+    assisted_client = client.APIClient(args.env, args.download)
 
 
 if __name__ == '__main__':

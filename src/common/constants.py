@@ -1,8 +1,8 @@
 DATA_FOLDER = './data'
 
-CLUSTERS_FILE = './data/clusters.json'
-INFRAENV_FILE = './data/infraenvs.json'
-HOSTS_FILE = './data/hosts.json'
+CLUSTERS_FILE = '../data/clusters.json'
+INFRAENV_FILE = '../data/infraenvs.json'
+HOSTS_FILE = '../data/hosts.json'
 
 PROD = 'https://api.openshift.com/api/assisted-install/v2'
 STAGE = 'https://api.stage.openshift.com/api/assisted-install/v2'

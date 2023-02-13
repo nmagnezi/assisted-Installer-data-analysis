@@ -5,8 +5,8 @@ import os
 import subprocess
 import time
 
-from src.client import client_helpers
-from src.common import constants
+from client import client_helpers
+from common import constants
 
 LOG = logging.getLogger(__name__)
 
@@ -33,7 +33,6 @@ class APIClient(object):
             ).json()
             LOG.info("Done!")
             json_object = json.dumps(clusters, indent=4)
-            print(os.getcwd())
             with open(constants.CLUSTERS_FILE, "w") as f:
                 f.seek(0)
                 f.write(json_object)
@@ -62,31 +61,54 @@ class APIClient(object):
     def get_hosts(self):
         return self.hosts
 
+    def _get_infraenv_hosts(self, infraenv_id):
+        hosts = list()
+        for j in range(constants.HOSTS_GET_ATTEMPTS):
+            try:
+                hosts = requests.get(url=f'{self.url}/infra-envs/{infraenv_id}/hosts',
+                                     headers={'Authorization': f'Bearer {self._get_token()}'}).json()
+            except requests.exceptions.RequestException:
+                LOG.info(
+                    f"failed requesting hosts for infraenv {infraenv_id} - attempt ({j}/{constants.HOSTS_GET_ATTEMPTS})")
+                continue
+            break
+        return hosts
+
+    def _index_hosts(self, infraenv_id, infraenv_idx, infraenv_hosts, hosts):
+        infraenv_hosts[infraenv_id] = list()
+
+        for host in hosts:
+            if not (host or host.get('id')):
+                continue
+
+            host_id = host.get('id')
+            if infraenv_hosts.get(infraenv_id) is not None:
+                infraenv_hosts[infraenv_id].append(host)
+                LOG.info(f"adding infraenv ({infraenv_idx}/{len(self.infraenvs)}) {infraenv_id} host {host_id}")
+
     def _get_hosts(self):
         infraenv_hosts = dict()
         if self.download_files:
             LOG.info("Downloading Hosts data. This might take a while...")
             for i, infraenv in enumerate(self.infraenvs):
-                time.sleep(0.5)
-                infraenv_id = infraenv["id"]
-                attempts = 3
-                hosts = []
-                for j in range(constants.HOSTS_GET_ATTEMPTS):
-                    try:
-                        hosts = requests.get(url=f'{self.url}/infra-envs/{infraenv_id}/hosts',
-                                             headers={'Authorization': f'Bearer {self.token}'}).json()
-                    except requests.exceptions.RequestException:
-                        LOG.debug(f"failed requesting hosts for infraenv {infraenv_id} - attempt ({j}/{attempts})")
-                        continue
-                    break
-                infraenv_hosts[infraenv['id']] = list()
-                if not hosts:
-                    LOG.debug(f"adding infraenv ({i}/{len(self.infraenvs)}) {infraenv_id} has no hosts")
+
+                time.sleep(0.5)  # So it won't flood the env
+                if not (infraenv or infraenv.get("id")):
+                    LOG.warning("Invalid InfraEnv, skipping")
                     continue
-                for host in hosts:
-                    host_id = host['id']
-                    infraenv_hosts[infraenv['id']].append(host)
-                    LOG.debug(f"adding infraenv ({i}/{len(self.infraenvs)}) {infraenv_id} host {host_id}")
+                infraenv_id = infraenv["id"]
+                hosts = self._get_infraenv_hosts(infraenv_id)
+                if not hosts:
+                    LOG.info(f"adding infraenv ({i}/{len(self.infraenvs)}) {infraenv_id} has no hosts")
+                    continue
+
+                self._index_hosts(
+                    infraenv_id=infraenv_id,
+                    infraenv_idx=i,
+                    infraenv_hosts=infraenv_hosts,
+                    hosts=hosts
+                )
+
             LOG.info("Done!")
             json_object = json.dumps(infraenv_hosts, indent=4)
             with open(constants.HOSTS_FILE, "w") as f:

@@ -1,6 +1,6 @@
 import argparse
 
-from src.common import constants
+from common import constants
 
 
 def process_args():
